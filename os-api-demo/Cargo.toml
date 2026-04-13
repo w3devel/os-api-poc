@@ -1,0 +1,9 @@
+[package]
+name    = "os-api-demo"
+version = "0.1.0"
+edition = "2021"
+description = "Interactive demo for the OS API proof-of-concept"
+license = "MIT"
+
+[dependencies]
+os-api = { path = "../os-api" }

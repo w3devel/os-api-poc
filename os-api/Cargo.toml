@@ -1,0 +1,14 @@
+[package]
+name    = "os-api"
+version = "0.1.0"
+edition = "2021"
+description = "OS API proof-of-concept library — demonstrates how an API layer sits between applications and the kernel"
+license = "MIT"
+
+[dependencies]
+# chrono gives us human-readable timestamps used in audit/log messages.
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
+[dev-dependencies]
+# No extra test dependencies needed; all tests are written with the built-in
+# Rust test framework.

@@ -3,6 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
+# Rust / Cargo build output
+/target/
+Cargo.lock
+
 # User-specific files
 *.rsuser
 *.suo

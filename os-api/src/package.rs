@@ -277,13 +277,16 @@ impl PackageManager {
         self.installed.keys().map(String::as_str).collect()
     }
 
-    /// Search for packages whose name or description contains `query`.
+    /// Search for packages whose name or description contains `query`
+    /// (case-insensitive).
     pub fn search<'a>(&'a self, query: &str) -> Vec<&'a Package> {
+        let query_lower = query.to_lowercase();
         self.repo
             .packages
             .values()
             .filter(|p| {
-                p.name.contains(query) || p.description.to_lowercase().contains(query)
+                p.name.to_lowercase().contains(&query_lower)
+                    || p.description.to_lowercase().contains(&query_lower)
             })
             .collect()
     }

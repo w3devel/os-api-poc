@@ -146,12 +146,18 @@ impl SecurityContext {
         }
     }
 
-    /// Log a security event to stdout (in a real system this would go to a
-    /// secure audit log that cannot be tampered with by regular users).
+    /// Log a security event to stdout.
+    ///
+    /// In a real system this would write to a tamper-evident audit log file
+    /// (e.g. `/var/log/os-api/audit.log`).  Audit logs intentionally record
+    /// the identity of who performed each action — that is their purpose.
     pub fn audit(&self, action: &str, resource: &str, allowed: bool) {
         let verdict = if allowed { "ALLOW" } else { "DENY" };
+        let timestamp = chrono::Local::now().format("%Y-%m-%dT%H:%M:%S");
+        // NOTE: logging the username here is intentional — an audit log must
+        // record who performed each action so administrators can review it.
         println!(
-            "[security] {verdict} user='{}' action='{action}' resource='{resource}'",
+            "[security] {timestamp} {verdict} user='{}' action='{action}' resource='{resource}'",
             self.username
         );
     }

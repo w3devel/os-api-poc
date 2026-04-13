@@ -144,7 +144,7 @@ impl ProcessManager {
         self.kernel.sys_kill(pid, 15)?;
         info.running = false;
 
-        ctx.audit("terminate", &info.executable.clone(), true);
+        ctx.audit("terminate", &info.executable, true);
         println!("[process] Process {pid} terminated.");
         Ok(())
     }

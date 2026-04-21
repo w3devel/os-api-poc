@@ -1,0 +1,8 @@
+app_id = "demo-app"
+
+[[capabilities]]
+name = "fs.read"
+scope_dir = "/tmp/os-api-poc-demo/allowed"
+
+[[capabilities]]
+name = "net.connect"

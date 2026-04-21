@@ -1,9 +1,8 @@
 [package]
-name = "os-api-demo"
+name = "os-api-broker"
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
 
 [dependencies]
-os-api-client = { path = "../os-api-client" }
 os-api-core = { path = "../os-api-core" }

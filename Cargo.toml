@@ -1,14 +1,8 @@
-# Cargo workspace root
-#
-# A Cargo "workspace" lets us keep multiple related Rust crates in one
-# repository while sharing a single build cache and lock-file.
-#
-#   os-api       — the re-usable library that defines the OS API
-#   os-api-demo  — a runnable demo that calls the library
-
 [workspace]
 members = [
-    "os-api",
+    "os-api-core",
+    "os-api-broker",
+    "os-api-client",
     "os-api-demo",
 ]
 resolver = "2"

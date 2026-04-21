@@ -21,13 +21,13 @@ This repository now also includes a **strictly local userspace broker** PoC:
 ### Run broker
 
 ```bash
-cargo run --bin os-api-broker -- /tmp/os-api-broker.sock /home/runner/work/os-api-poc/os-api-poc/policy.example.toml
+cargo run --bin os-api-broker -- /tmp/os-api-broker.sock ./policy.example.toml
 ```
 
 ### Run example app
 
 ```bash
-cargo run --bin os-api-example -- /tmp/os-api-broker.sock /home/runner/work/os-api-poc/os-api-poc/os-api-example/manifest.toml
+cargo run --bin os-api-example -- /tmp/os-api-broker.sock ./os-api-example/manifest.toml
 ```
 
 ### Policy and manifest

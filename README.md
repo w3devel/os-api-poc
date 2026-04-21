@@ -10,6 +10,34 @@ directly.
 
 ---
 
+## OS-API broker v0 (Linux local IPC PoC)
+
+This repository now also includes a **strictly local userspace broker** PoC:
+
+- `os-api-broker`: daemon listening on a Unix domain socket (`/tmp/os-api-broker.sock` by default)
+- `os-api-client`: client library and v0 capability traits (`fs.read`, `fs.write`, `net.connect`, `proc.spawn`)
+- `os-api-example`: demo app showing allowed `fs.read` and fail-closed denied `fs.write`
+
+### Run broker
+
+```bash
+cargo run --bin os-api-broker -- /tmp/os-api-broker.sock ./policy.example.toml
+```
+
+### Run example app
+
+```bash
+cargo run --bin os-api-example -- /tmp/os-api-broker.sock ./os-api-example/manifest.toml
+```
+
+### Policy and manifest
+
+- Broker policy: `policy.example.toml` (`app_id -> allowed capabilities/scopes`)
+- App manifest: `os-api-example/manifest.toml` (requested capabilities)
+- Security posture: **default deny** for missing app entries and out-of-scope operations
+
+---
+
 ## Table of Contents
 
 1. [The Problem](#the-problem)
@@ -116,6 +144,23 @@ os-api-poc/
 ├── README.md           # This file
 ├── TO-DO.md            # Suggested next steps
 │
+├── os-api-broker/      # Local Unix-socket broker daemon (policy + enforcement)
+│   ├── Cargo.toml
+│   └── src/
+│       ├── lib.rs          # Policy loader + request enforcement
+│       └── main.rs         # Unix socket server entrypoint
+│
+├── os-api-client/      # Client library + protocol types + capability traits
+│   ├── Cargo.toml
+│   └── src/
+│       └── lib.rs
+│
+├── os-api-example/     # Example app using manifest + client library
+│   ├── Cargo.toml
+│   ├── manifest.toml
+│   └── src/
+│       └── main.rs
+│
 ├── os-api/             # The reusable library crate
 │   ├── Cargo.toml
 │   └── src/
@@ -149,6 +194,10 @@ cargo test
 
 # Run the interactive demo
 cargo run --bin os-api-demo
+
+# Run local broker + capability demo app (in separate terminals)
+cargo run --bin os-api-broker -- /tmp/os-api-broker.sock ./policy.example.toml
+cargo run --bin os-api-example -- /tmp/os-api-broker.sock ./os-api-example/manifest.toml
 
 # Check code style and correctness
 cargo clippy

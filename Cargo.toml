@@ -8,7 +8,7 @@
 
 [workspace]
 members = [
-    "os-api",
-    "os-api-demo",
+    "os-api", "os-api-broker", "os-api-client",
+    "os-api-demo", "os-api-example",
 ]
 resolver = "2"

@@ -67,6 +67,8 @@ scope_dir = "/tmp/os-api-poc-demo/allowed"
 [[capabilities]]
 name = "net.connect"
 ```
+
+```
 os-api-poc/
 ├── Cargo.toml          # Workspace definition (ties the two crates together)
 ├── README.md           # This file
@@ -106,8 +108,6 @@ os-api-poc/
     └── src/
         └── main.rs         # Walks through all API scenarios
 ```
-
----
 
 ## Run the POC
 

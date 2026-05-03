@@ -1,0 +1,9 @@
+# Static policy mapping app_id -> allowed capabilities/scopes.
+# Anything not listed is denied by default.
+
+[[apps]]
+app_id = "example-app"
+fs_read_scopes = ["/tmp/os-api-poc-demo/read"]
+fs_write_scopes = ["/tmp/os-api-poc-demo/write"]
+allow_net_connect = false
+allow_proc_spawn = false

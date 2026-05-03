@@ -1,0 +1,7 @@
+app_id = "example-app"
+
+[requested]
+fs_read_scopes = ["/tmp/os-api-poc-demo/read"]
+fs_write_scopes = ["/tmp/os-api-poc-demo/write"]
+net_connect = false
+proc_spawn = false

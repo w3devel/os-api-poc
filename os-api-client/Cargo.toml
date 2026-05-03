@@ -1,6 +1,11 @@
 [package]
 name = "os-api-client"
 version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[dependencies]
+os-api-core = { path = "../os-api-core" }
 edition = "2024"
 license = "MIT"
 description = "Client library for the local OS-API broker proof-of-concept"

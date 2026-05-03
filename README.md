@@ -1,15 +1,15 @@
-# OS API — Proof of Concept
+# OS API POC (Linux userspace broker)
 
-> **A demonstration of how an API layer between applications and the OS kernel
-> can improve security, auditability, and portability.**
+This repository contains a working v0 proof-of-concept for a **userspace OS-API broker** using **local IPC (Unix domain sockets)** and **capability-first, fail-closed** behavior.
 
-This repository contains a Rust library (`os-api`) and a runnable demo
-(`os-api-demo`) that mock how an operating system could expose its services
-through a structured API rather than letting applications call the kernel
-directly.
+## Workspace crates
 
----
+- `os-api-core` — shared protocol/types, manifest format, structured errors, message codec.
+- `os-api-broker` — broker daemon (policy + enforcement in userspace session state).
+- `os-api-client` — app-side client library for broker IPC.
+- `os-api-demo` — demo app showing denied/allowed flows.
 
+## Protocol (v0)
 ## OS-API broker v0 (Linux local IPC PoC)
 
 This repository now also includes a **strictly local userspace broker** PoC:
@@ -40,104 +40,32 @@ cargo run --bin os-api-example -- /tmp/os-api-broker.sock ./os-api-example/manif
 
 ## Table of Contents
 
-1. [The Problem](#the-problem)
-2. [The Solution — an OS API](#the-solution--an-os-api)
-3. [Linux vs Unix — what's the difference?](#linux-vs-unix--whats-the-difference)
-4. [Project Layout](#project-layout)
-5. [Quick Start](#quick-start)
-6. [API Modules](#api-modules)
-7. [How Debian Works Today (and how an API improves it)](#how-debian-works-today-and-how-an-api-improves-it)
-8. [What macOS (XNU) does differently](#what-macos-xnu-does-differently)
-9. [Continuing from here](#continuing-from-here)
+JSON messages over Unix domain sockets (newline-delimited):
 
----
+- `hello { version, app_id }` / `hello_ack`
+- `request_capabilities { capabilities[] }`
+- `invoke { token, operation }`
 
-## The Problem
+`token` is a broker-scoped opaque grant handle bound to the current connection session.
 
-On every mainstream operating system, programs talk to the kernel through
-**system calls** (syscalls).  A syscall is a special CPU instruction that
-switches the processor from unprivileged "user mode" into privileged "kernel
-mode" so the kernel can perform the requested work (read a file, allocate
-memory, start a process …).
+## Capabilities implemented
 
-```
-Application
-    │
-    │  open("/etc/passwd", O_RDONLY)    ← direct syscall
-    ▼
-Linux Kernel
-```
+- `fs.read` with scope directory allowlist from manifest (`read_file(relative_path)` behavior via `invoke fs_read`)
+- `net.connect` is denied by default in v0
 
-This works, but it has significant drawbacks:
+## Manifest format (TOML)
 
-| Problem | Detail |
-|---------|--------|
-| **Security** | Once an app is running it can make *any* syscall the kernel permits for its user.  The only gatekeeping is Unix file permission bits and (optional, complex) tools like SELinux/AppArmor. |
-| **No policy layer** | There is nothing between "I want to read this file" and "here you go" that can enforce an organisation's rules. |
-| **Not portable** | Syscall numbers differ between Linux, macOS (XNU), FreeBSD, and others.  Code targeting the Linux ABI directly breaks on macOS. |
-| **Hard to audit** | Logging every syscall made by every process is expensive and noisy.  There is no standard, structured audit API. |
-| **Fragile** | The kernel's internal ABI (how syscalls work at the binary level) can change between kernel versions. |
+Example: `os-api-demo/examples/demo.manifest.toml`
 
----
+```toml
+app_id = "demo-app"
 
-## The Solution — an OS API
+[[capabilities]]
+name = "fs.read"
+scope_dir = "/tmp/os-api-poc-demo/allowed"
 
-Insert a thin **API layer** between applications and the kernel:
-
-```
-Application
-    │
-    │  os_api::filesystem::open_file(ctx, "/etc/passwd", read_only=true)
-    ▼
-┌─────────────────────────────────────────┐
-│               OS  API                   │
-│                                         │
-│  1. Check caller's capability set       │
-│  2. Sanitise / validate the request     │
-│  3. Write to the audit log              │
-│  4. Call the kernel on the app's behalf │
-└────────────────┬────────────────────────┘
-                 │  sys_open("/etc/passwd", O_RDONLY)
-                 ▼
-          Linux Kernel
-```
-
-Benefits:
-
-* **Security by default** — every operation requires the caller to hold an
-  explicit **capability token**.  A service that only needs to read files
-  cannot install packages even if it is compromised.
-* **Auditability** — every API call is logged in a structured way before the
-  kernel is invoked.
-* **Portability** — the API surface is the same on Linux, macOS, and BSD.
-  Only the kernel-adapter layer needs to differ.
-* **Stable versioning** — applications pin to an API version.  Kernel upgrades
-  do not break them.
-
----
-
-## Linux vs Unix — what's the difference?
-
-This question comes up constantly, so here is a clear answer:
-
-| Term | Meaning |
-|------|---------|
-| **Unix** | A family of operating systems created at Bell Labs (AT&T) in the late 1960s–70s.  Defines the concepts of processes, files-as-byte-streams, pipes, shells, and the C programming interface. |
-| **POSIX** | A set of IEEE standards that codify the Unix programming interface.  Any OS that conforms to POSIX can run the same C programs. |
-| **Linux** | A *Unix-like* kernel written from scratch by Linus Torvalds starting in 1991.  It is not certified Unix, but it is POSIX-compatible and behaves like Unix in almost every way. |
-| **GNU/Linux** | The complete OS: the Linux kernel plus the GNU userspace tools (bash, coreutils, glibc …).  What people usually mean when they say "Linux". |
-| **macOS (XNU)** | Apple's operating system uses the **XNU** kernel, which combines the **Mach** microkernel with a **BSD** (Berkeley Software Distribution) Unix layer.  macOS is a *certified* Unix. |
-| **FreeBSD / OpenBSD / NetBSD** | Direct descendants of the original BSD Unix code.  More legally "Unix" than Linux, but less popular on the desktop. |
-
-**For an OS API, the key insight is:** the API surface can be *identical* on all
-these systems.  Only the thin kernel-adapter layer at the bottom needs to
-handle the platform differences (different syscall numbers, different ioctls,
-different proc filesystems, etc.).
-
----
-
-## Project Layout
-
+[[capabilities]]
+name = "net.connect"
 ```
 os-api-poc/
 ├── Cargo.toml          # Workspace definition (ties the two crates together)
@@ -181,11 +109,15 @@ os-api-poc/
 
 ---
 
-## Quick Start
+## Run the POC
 
-**Prerequisites:** [Rust](https://rustup.rs/) 1.65 or later.
+From repo root:
 
 ```bash
+# 1) Prepare demo files
+mkdir -p /tmp/os-api-poc-demo/allowed
+echo "hello from allowed scope" > /tmp/os-api-poc-demo/allowed/hello.txt
+echo "top-secret" > /tmp/os-api-poc-demo/secret.txt
 # Build everything
 cargo build
 
@@ -313,108 +245,23 @@ pm.terminate(&ctx, pid)?;
 let running = pm.list_running();
 ```
 
-### `package` — `PackageManager`
+# 2) Start broker (terminal A)
+cargo run -p os-api-broker -- /tmp/os-api-broker.sock os-api-demo/examples/demo.manifest.toml
 
-```rust
-use os_api::package::{PackageManager, Repository};
-let repo = Repository::demo(); // pre-populated with sample packages
-let mut mgr = PackageManager::new(repo);
-mgr.install(&root_ctx, "curl")?;  // resolves deps automatically
-mgr.remove(&root_ctx, "curl")?;
-let results = mgr.search("ssh");
+# 3) Run demo app (terminal B)
+cargo run -p os-api-demo -- /tmp/os-api-broker.sock os-api-demo/examples/demo.manifest.toml hello.txt
 ```
 
----
+## Expected demo output highlights
 
-## How Debian Works Today (and how an API improves it)
+- `invoke fs.read` before grants: **denied** (`unknown or unauthorized capability token`)
+- `request_capabilities`:
+  - `fs.read` capability: **granted** with opaque token
+  - `net.connect`: **denied by broker policy**
+- `invoke fs.read hello.txt` with token: **success**
+- `invoke fs.read ../secret.txt` with token: **denied** (path traversal blocked)
 
-### Today — `apt install firefox`
+## Tests
 
-```
-1. Read /etc/apt/sources.list  (repository URLs)
-2. Fetch & parse Packages.gz   (package index)
-3. Resolve dependencies        (recursive, version-constrained)
-4. Download .deb files         (GPG-verified)
-5. dpkg --unpack               (extracts files as root)
-6. Run preinst / postinst      (shell scripts, run as root — big risk!)
-7. Update /var/lib/dpkg/status (package database)
-```
-
-The danger is step 6: a `postinst` script has **unlimited root access** and
-can do anything on the machine.  APT verifies the GPG signature of the
-package but trusts the script unconditionally.
-
-### With an OS API
-
-```
-1. app calls PackageManager::install(&root_ctx, "firefox")
-2. API checks ManagePackages capability  ← new: explicit gating
-3. API resolves dependencies             (same as today)
-4. API downloads & verifies signature    (same as today)
-5. API calls kernel.sys_exec(postinst)   with a sandboxed capability set
-   that only allows writing to /usr/** — the script cannot touch /etc/passwd
-6. API logs every step to audit trail    ← new: structured audit
-```
-
-### First-run on a new Debian install
-
-On a fresh Debian install `debian-installer` (or `calamares`) runs as root
-and performs steps similar to those in `BootManager::first_run_setup`:
-
-* Partition and format disks
-* Mount the new root filesystem
-* Unpack the base system tarball
-* `chroot` into the new system and run `dpkg --configure -a`
-* Set hostname, create the first user, configure locale/timezone
-* Install GRUB into the MBR/EFI partition
-* Reboot into the new system
-
-An OS API would wrap each of these steps behind a `BootControl` capability
-check and emit an audit record for every action.
-
----
-
-## What macOS (XNU) does differently
-
-macOS uses the **XNU** kernel (X is Not Unix), which is a hybrid:
-
-* **Mach** microkernel at the core — handles threads, IPC (inter-process
-  communication), and virtual memory.
-* **BSD layer** on top of Mach — provides the POSIX API (files, processes,
-  sockets) that most programs use.
-* **I/O Kit** — object-oriented driver framework (written in a subset of C++).
-
-From a developer's perspective macOS looks almost identical to Linux because
-both expose the POSIX API.  Key differences:
-
-| Feature | Linux | macOS (XNU) |
-|---------|-------|-------------|
-| Package management | APT/RPM/pacman (distro-specific) | Homebrew (community) / Mac App Store (sandboxed) |
-| Init system | systemd (most distros) | launchd |
-| Filesystem | ext4, btrfs, xfs … | APFS (Apple File System) |
-| Dynamic linker | ld-linux.so | dyld |
-| Kernel modules | `.ko` files, `insmod` / `modprobe` | `.kext` files, SIP-protected |
-| Syscall ABI | Stable across kernel versions | Not guaranteed; use libSystem |
-| Binary format | ELF | Mach-O |
-
-The Mac App Store is the closest thing macOS has to an OS API for application
-installation: apps are sandboxed, signed, and their capabilities (camera,
-microphone, network, files …) are declared upfront and enforced by the OS.
-This is exactly the model this PoC is advocating for Linux.
-
----
-
-## Continuing from here
-
-See [TO-DO.md](TO-DO.md) for a prioritised checklist of next steps.
-
-At a high level, the next meaningful milestones are:
-
-1. **Replace the mock kernel with real syscalls** using the `libc` crate, so
-   actual files are read/written on the host machine.
-2. **Persist state** — use a SQLite database (via `rusqlite`) to store the
-   installed package list and running process table across restarts.
-3. **Expose the API over IPC** — use Unix domain sockets or D-Bus so that
-   real application processes can call the API.
-4. **Write a simple shell** that drives the API instead of calling syscalls
-   directly, making it a real proof-of-concept.
+- Manifest parsing unit tests in `os-api-core`
+- Scope/path traversal prevention unit tests in `os-api-broker`
